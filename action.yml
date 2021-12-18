@@ -18,7 +18,7 @@ inputs:
     default: './issues'
 
 # Optional Output parameters allow you to declare data that an action sets.
-outputs:
+#outputs:
 runs: # Required
   using: "composite"
   steps:
