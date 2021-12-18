@@ -1,0 +1,69 @@
+# action.yml
+# The metadata filename must be either action.yml or action.yaml.
+# The data in the metadata file defines the inputs, outputs and main entrypoint for your action.
+name: 'Hello World'
+# Optional The name of the action's author.
+author: ongoing-z
+# A short description of the action.
+description: transfer issue content to markdown files
+# Optional Input parameters allow you to specify data that the action expects to use during runtime.
+#   We recommended using lowercase input ids.
+inputs: 
+  my-token:
+    description: 'to access github repo'
+    required: true
+  path:
+    description: 'the generated markdown file you want to save'
+    required: true
+    default: './issues'
+
+# Optional Output parameters allow you to declare data that an action sets.
+outputs:
+runs: # Required
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install Dependency
+      run: |
+        python3 -m pip install --upgrade pip setuptools wheel
+        pip3 install -r requirements.txt
+      shell: bash
+    - name: check if has path directory
+      run: |
+        path=${{ inputs.path }}
+        if [ -d $path ]; then
+          echo "[INFO] $path already exists."
+        else 
+          mkdir $path
+          echo "[INFO] $path has already been created."
+        fi
+      shell: bash
+    - run: python3 trans_issue_to_md_file.py ${{ inputs.my-token }} ${{ github.repository }} ${{ inputs.path }}
+      shell: bash
+    - name: Check if has issues to be published
+      id: check
+      run: |
+        git add .
+        # check if generate new markdown files
+        if test -z "$(git diff --cached)"; then
+          echo "[INFO] No issues whose labels include \"blog\" and \"need_published\"."
+          echo "::set-output name=isNeedPR::N"
+        else
+          echo "::set-output name=isNeedPR::Y"
+        fi
+      shell: bash
+    - name: Create New Pull Request
+      if: steps.check.outputs.isNeedPR == 'Y'
+      uses: peter-evans/create-pull-request@v3
+      with:
+        # The title of the pull request.
+        title: New generated blog
+        # The body of the pull request.
+        #          body: ${{ steps.calibre.outputs.markdown }}
+        branch-suffix: timestamp
+        commit-message: new generated blog from issue
+        delete-branch: true # Delete the branch when closing pull requests, and when undeleted after merging.
+
