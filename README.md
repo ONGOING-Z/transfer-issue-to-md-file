@@ -44,5 +44,5 @@ None
 [MIT][license_addr]
 
 
-[1]: github.com/peter-evans/create-pull-request
+[1]: https://github.com/peter-evans/create-pull-request
 [license_addr]: https://github.com/ONGOING-Z/transfer-issue-to-md-file/blob/main/LICENSE
