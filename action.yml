@@ -1,7 +1,7 @@
 # action.yml
 # The metadata filename must be either action.yml or action.yaml.
 # The data in the metadata file defines the inputs, outputs and main entrypoint for your action.
-name: 'Hello World'
+name: 'transfer issue content to markdown files'
 # Optional The name of the action's author.
 author: ongoing-z
 # A short description of the action.
