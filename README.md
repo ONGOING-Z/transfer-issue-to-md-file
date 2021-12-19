@@ -1,6 +1,6 @@
 # Transfer Issue to Markdown File
 
-A Github action to transfer issue with 'blog' and 'need_published' labels content to markdown file. After that, this action will create a pull
+A Github action transfers issue with 'blog' and 'need_published' labels content to markdown file. After that, this action will create a pull
 request to your current branch. And you can merge it manually.
 
 In this action, I use this action - [create pull request][1] to make PR.
