@@ -41,7 +41,7 @@ runs: # Required
           echo "[INFO] $path has already been created."
         fi
       shell: bash
-    - run: python3 trans_issue_to_md_file.py ${{ inputs.my-token }} ${{ github.repository }} ${{ inputs.path }}
+    - run: python3 ${{ GITHUB_ACTION_PATH }}/trans_issue_to_md_file.py ${{ inputs.my-token }} ${{ github.repository }} ${{ inputs.path }}
       shell: bash
     - name: Check if has issues to be published
       id: check
