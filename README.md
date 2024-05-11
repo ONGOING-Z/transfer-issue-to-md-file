@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Example Action
-        uses: ONGOING-Z/transfer-issue-to-md-file@v1.0.1
+        uses: ONGOING-Z/transfer-issue-to-md-file@v1.0.4
         with:
           my-token: ${{ secrets.MY_TOKEN }}
           path: "."
