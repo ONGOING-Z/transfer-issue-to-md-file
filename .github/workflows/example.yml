@@ -1,0 +1,57 @@
+name: Convert Issues to Blog Posts
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ main ]
+  
+  # Trigger when issues are created, edited, or labeled
+  issues:
+    types: [opened, edited, labeled, unlabeled]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+  
+  # Optional: Schedule regular runs
+  # schedule:
+  #   - cron: '0 0 * * 0'  # Weekly on Sunday at midnight
+
+jobs:
+  convert-issues:
+    runs-on: ubuntu-latest
+    
+    # Only run if triggered by issues event with correct labels
+    # or on other triggers
+    if: |
+      github.event_name != 'issues' || 
+      (contains(github.event.issue.labels.*.name, 'blog') && 
+       contains(github.event.issue.labels.*.name, 'need_published'))
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a PAT if you want the PR to trigger other workflows
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Convert Issues to Markdown
+        uses: ONGOING-Z/transfer-issue-to-md-file@v2.0.0
+        with:
+          my-token: ${{ secrets.GITHUB_TOKEN }}
+          path: "./content/blog"
+      
+      # Optional: Add a comment to the issue after conversion
+      - name: Comment on Issue
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.issue.number;
+            if (issueNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: '✅ This issue has been queued for conversion to a blog post. A pull request will be created shortly.'
+              });
+            }
