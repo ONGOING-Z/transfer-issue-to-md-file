@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Example Action
-        uses: ONGOING-Z/transfer-issue-to-md-file@v1.0.4
+        uses: ONGOING-Z/transfer-issue-to-md-file@v1.0.5
         with:
           my-token: ${{ secrets.MY_TOKEN }}
           path: "."
@@ -38,6 +38,13 @@ All inputs are **required**.
 
 ## Action Outputs
 None
+
+## Implementation notes
+
+- Filenames are slugified for safety and include the date prefix like `YYYY-MM-DD-title.md`. If a name collision occurs, the issue number suffix is appended.
+- Files are written in UTF-8 and include YAML front matter with `title`, `date`, `labels` (excluding control labels `blog` and `need_published`), `issue_number`, `issue_url`, and `author`.
+- The action no longer uses deprecated `set-output` and instead writes to `$GITHUB_OUTPUT`.
+- The script supports both legacy positional arguments and new flags: `--repo <owner/name> --path <dir>`; token can be provided by `--token` or `GITHUB_TOKEN` env.
 
 ## License
 

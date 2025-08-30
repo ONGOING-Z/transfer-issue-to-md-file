@@ -26,6 +26,8 @@ runs: # Required
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
+        cache: 'pip'
+        cache-dependency-path: ${{ github.action_path }}/requirements.txt
     - name: Install Dependency
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
@@ -34,17 +36,19 @@ runs: # Required
     - name: check if has path directory
       run: |
         path=${{ inputs.path }}
-        if [ -d $path ]; then
+        if [ -d "$path" ]; then
           echo "[INFO] $path already exists."
         else 
-          mkdir $path
+          mkdir -p "$path"
           echo "[INFO] $path has already been created."
         fi
       shell: bash
 
     - name: Run process program
       run: |
-        python3 ${{ github.action_path }}/trans_issue_to_md_file.py ${{ inputs.my-token }} ${{ github.repository }} ${{ inputs.path }}
+        # Use env for token for safety and support new CLI
+        export GITHUB_TOKEN=${{ inputs.my-token }}
+        python3 ${{ github.action_path }}/trans_issue_to_md_file.py --repo "${{ github.repository }}" --path "${{ inputs.path }}"
         if [ $? -ne 0 ];
           then exit 1;
         fi
@@ -56,14 +60,14 @@ runs: # Required
         # check if generate new markdown files
         if test -z "$(git diff --cached)"; then
           echo "[INFO] No issues whose labels include \"blog\" and \"need_published\"."
-          echo "::set-output name=isNeedPR::N"
+          echo "isNeedPR=N" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=isNeedPR::Y"
+          echo "isNeedPR=Y" >> $GITHUB_OUTPUT
         fi
       shell: bash
     - name: Create New Pull Request
       if: steps.check.outputs.isNeedPR == 'Y'
-      uses: peter-evans/create-pull-request@v3
+      uses: peter-evans/create-pull-request@v6
       with:
         # The title of the pull request.
         title: New generated blog
