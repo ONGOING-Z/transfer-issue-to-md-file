@@ -1,47 +1,50 @@
 """
-Used for create blog by github repo issues.
+Used for creating blog posts from GitHub repository issues.
 """
-# todo: 题目
-# 中文和英文之间的空格消除
-# 英文和英文之间的空格用 ‘-’ 代替
 # -*- coding: utf-8 -*-
 
+import re
 import sys
 import time
+from pathlib import Path
+from typing import List
 
 from github import Github, GithubException
 from loguru import logger
 
-blog_path = sys.argv[3]
 
-
-def z_get_user(my_token, username):
+def z_get_user(my_token: str, username: str):
     """
     获得用户
     :param my_token:
     :param username
     :return:
     """
+    g = Github(my_token)
     try:
-        g = Github(my_token)
-    except GithubException.BadCredentialsException:
-        logger.error("github access token has been expired! Please update.")
+        user = g.get_user(str(username))
+    except GithubException as exc:
+        logger.error(f"Failed to access GitHub user '{username}': {exc}")
+        raise
     else:
-        logger.info("access github repo done.")
-
-    user = g.get_user(str(username))
-    return user
+        logger.info("Accessed GitHub user successfully.")
+        return user
 
 
-def z_get_repo(user, repo_name):
+def z_get_repo(user, repo_name: str):
     """
     获得用户的公开仓库
     :param user
     :param repo_name
     :return: repo
     """
-    repo = user.get_repo(repo_name)
-    return repo
+    try:
+        repo = user.get_repo(repo_name)
+    except GithubException as exc:
+        logger.error(f"Failed to access repository '{repo_name}': {exc}")
+        raise
+    else:
+        return repo
 
 
 def z_get_issues(repo):
@@ -50,11 +53,12 @@ def z_get_issues(repo):
     :param repo: 仓库
     :return: issues
     """
-    issues = repo.get_issues()
+    # Default to open issues; adjust if needed
+    issues = repo.get_issues(state="open")
     return issues
 
 
-def process_issues(issues):
+def process_issues(issues, output_dir: Path) -> None:
     """
     处理标签为 "blog" 和 "need_published" 的 issues
     :param issues:
@@ -63,7 +67,7 @@ def process_issues(issues):
 
     issue_num = 0
     res_num = 0
-    res_issues_list = []
+    res_issues_list: List[str] = []
     for issue in issues:
         issue_num = issue_num + 1  # compute all issues number
         if len(issue.labels) != 0:
@@ -73,7 +77,7 @@ def process_issues(issues):
             if ("blog" in labels_list) and ("need_published" in labels_list):
                 res_num = res_num + 1  # compute the issues number by conditions
                 res_issues_list.append(issue.title)
-                write_issue_to_md_file(issue)
+                write_issue_to_md_file(issue, output_dir)
             else:
                 continue
     logger.info(
@@ -83,50 +87,64 @@ def process_issues(issues):
         logger.debug(res_issues_list)
 
 
-def get_labels_list(labels):
+def get_labels_list(labels) -> List[str]:
     """
     获取 issue 的 label 列表
     :param labels:
     :return:
     """
-    labels_list = []
-    for label in labels:
-        labels_list.append(label.name)
-    return labels_list
+    return [label.name for label in labels]
 
 
-def write_issue_to_md_file(issue) -> None:
+def write_issue_to_md_file(issue, output_dir: Path) -> None:
     """
     将 issue 中的内容写到 markdown 文件中
     :param issue:
     :return: none
     """
-    global blog_path
     local_date = time.strftime("%Y-%m-%d", time.localtime())
-    body = issue.body
-    name = (
-        local_date + "-" + issue.title
-    )  # the generated markdown file's name should be like '2021-08-09-xxx.md'
-    if blog_path[len(blog_path) - 1] == '/':
-        pass
-    else:
-        blog_path = blog_path + '/'
-    new_name = blog_path + name
-    io_util(new_name, body, issue.title)
+    body = issue.body or ""
+    safe_title = sanitize_filename(issue.title)
+    # the generated markdown file's name should be like '2021-08-09-xxx.md'
+    name = f"{local_date}-{safe_title}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    io_util(output_dir / name, body, issue.title)
 
 
-def io_util(file_name, file_body, issue_title) -> None:
+def io_util(file_path: Path, file_body: str, issue_title: str) -> None:
     """
     写文件工具函数
     :param issue_title: issue 名称
-    :param file_name: 文件名称
+    :param file_path: 文件路径（不带扩展名）
     :param file_body: 文件内容
     :return:
     """
-    fo = open(f"{file_name}.md", "w+")
-    fo.write(file_body)
+    try:
+        with open(file_path.with_suffix(".md"), "w", encoding="utf-8", newline="\n") as file_obj:
+            file_obj.write(file_body)
+        logger.info(f"<issue: {issue_title}> 内容已写入文件{file_path.name}.md 中!")
+    except OSError as exc:
+        logger.error(f"写入文件失败: {file_path.with_suffix('.md')}. 错误: {exc}")
+        raise
 
-    logger.info(f"<issue: {issue_title}> 内容已写入文件{file_name}.md中!")
+
+def sanitize_filename(title: str) -> str:
+    """
+    Sanitize a string to be a safe filename while preserving non-ASCII characters
+    (e.g., Chinese). Replaces path separators and reserved characters with '-'.
+    """
+    if title is None:
+        return "untitled"
+    # Collapse whitespace to single spaces
+    value = re.sub(r"\s+", " ", str(title)).strip()
+    # Replace reserved characters (across common filesystems) with '-'
+    value = re.sub(r"[<>:\\/\|\?\*]", "-", value)
+    # Replace remaining spaces with '-'
+    value = re.sub(r"\s", "-", value)
+    # Collapse multiple dashes
+    value = re.sub(r"-+", "-", value)
+    # Trim leading/trailing dashes
+    return value.strip("-") or "untitled"
 
 
 @logger.catch
@@ -135,12 +153,19 @@ def main() -> None:
     主函数
     :return: none
     """
+    if len(sys.argv) < 4:
+        logger.error("Usage: trans_issue_to_md_file.py <token> <owner/repo> <output_dir>")
+        sys.exit(1)
+
     my_token = sys.argv[1]
-    # Get current repostory name
+    # Get current repository name
     user_and_repo_name = sys.argv[2]
-    results = user_and_repo_name.split('/')
-    username = results[0]
-    repo_name = results[1]
+    try:
+        username, repo_name = user_and_repo_name.split("/", 1)
+    except ValueError:
+        logger.error("Repository must be in the format 'owner/repo'.")
+        sys.exit(1)
+    output_dir = Path(sys.argv[3])
     # 获取用户
     user = z_get_user(my_token, username)
     # 根据仓库名和用户获取对应仓库
@@ -149,7 +174,7 @@ def main() -> None:
     # 根据仓库获取仓库的 issue
     issues = z_get_issues(repo)
     # 对符合条件的 issue 进行处理
-    process_issues(issues)
+    process_issues(issues, output_dir)
 
 
 if __name__ == "__main__":

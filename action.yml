@@ -29,22 +29,22 @@ runs: # Required
     - name: Install Dependency
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
-        pip3 install -r ${{ github.action_path }}/requirements.txt
+        pip3 install -r "${{ github.action_path }}/requirements.txt"
       shell: bash
     - name: check if has path directory
       run: |
         path=${{ inputs.path }}
-        if [ -d $path ]; then
+        if [ -d "$path" ]; then
           echo "[INFO] $path already exists."
         else 
-          mkdir $path
+          mkdir -p "$path"
           echo "[INFO] $path has already been created."
         fi
       shell: bash
 
     - name: Run process program
       run: |
-        python3 ${{ github.action_path }}/trans_issue_to_md_file.py ${{ inputs.my-token }} ${{ github.repository }} ${{ inputs.path }}
+        python3 "${{ github.action_path }}/trans_issue_to_md_file.py" "${{ inputs.my-token }}" "${{ github.repository }}" "${{ inputs.path }}"
         if [ $? -ne 0 ];
           then exit 1;
         fi
@@ -52,18 +52,19 @@ runs: # Required
     - name: Check if has issues to be published
       id: check
       run: |
-        git add .
-        # check if generate new markdown files
-        if test -z "$(git diff --cached)"; then
+        path=${{ inputs.path }}
+        git add -A "$path" || true
+        # check if generated new markdown files under the target path
+        if git diff --cached --quiet -- "$path"; then
           echo "[INFO] No issues whose labels include \"blog\" and \"need_published\"."
-          echo "::set-output name=isNeedPR::N"
+          echo "isNeedPR=N" >> "$GITHUB_OUTPUT"
         else
-          echo "::set-output name=isNeedPR::Y"
+          echo "isNeedPR=Y" >> "$GITHUB_OUTPUT"
         fi
       shell: bash
     - name: Create New Pull Request
       if: steps.check.outputs.isNeedPR == 'Y'
-      uses: peter-evans/create-pull-request@v3
+      uses: peter-evans/create-pull-request@v6
       with:
         # The title of the pull request.
         title: New generated blog
@@ -72,4 +73,6 @@ runs: # Required
         branch-suffix: timestamp
         commit-message: new generated blog from issue
         delete-branch: true # Delete the branch when closing pull requests, and when undeleted after merging.
+        add-paths: |
+          ${{ inputs.path }}
 
