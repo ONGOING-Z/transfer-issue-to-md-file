@@ -25,7 +25,7 @@ runs: # Required
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
     - name: Install Dependency
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
@@ -56,14 +56,14 @@ runs: # Required
         # check if generate new markdown files
         if test -z "$(git diff --cached)"; then
           echo "[INFO] No issues whose labels include \"blog\" and \"need_published\"."
-          echo "::set-output name=isNeedPR::N"
+          echo "isNeedPR=N" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=isNeedPR::Y"
+          echo "isNeedPR=Y" >> $GITHUB_OUTPUT
         fi
       shell: bash
     - name: Create New Pull Request
       if: steps.check.outputs.isNeedPR == 'Y'
-      uses: peter-evans/create-pull-request@v3
+      uses: peter-evans/create-pull-request@v6
       with:
         # The title of the pull request.
         title: New generated blog
