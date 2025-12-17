@@ -34,10 +34,10 @@ runs: # Required
     - name: check if has path directory
       run: |
         path=${{ inputs.path }}
-        if [ -d $path ]; then
+        if [ -d "$path" ]; then
           echo "[INFO] $path already exists."
         else 
-          mkdir $path
+          mkdir -p "$path"
           echo "[INFO] $path has already been created."
         fi
       shell: bash
